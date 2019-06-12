@@ -1,12 +1,12 @@
 {-# LANGUAGE TemplateHaskell #-}
 
-module Polysemy.Idempotent
-  ( Idempotent
-  , idempotently
-  , Idempotency ()
-  , newIdempotency
-  , runIdempotentInIO
-  ) where
+module Polysemy.Idempotent where
+  -- ( Idempotent
+  -- , idempotently
+  -- , Idempotency ()
+  -- , newIdempotency
+  -- , runIdempotentInIO
+  -- ) where
 
 import           Control.Exception (evaluate)
 import           Data.Dynamic
@@ -51,5 +51,20 @@ runIdempotentInIO idem@(Idempotency ref) = interpretH $ \case
         a <- sendM $ evaluate $ fromMaybe (error "non-pure idempotency block") $ inspect' fa
         sendM . modifyIORef ref $ M.insert key $ toDyn a
         pure fa
-      Just a -> pureT $ fromMaybe (error "idempotency collision") $ fromDynamic a
+      Just a -> pureT $ fromMaybe (error "idempotency key collision") $ fromDynamic a
+
+
+
+test :: IO ()
+test = do
+  let mykey = "hello"
+  idem <- newIdempotency
+  runM $ runIdempotentInIO idem $ do
+    idempotently mykey $ do
+      sendM $ putStrLn "only one time!"
+    idempotently mykey $ do
+      sendM $ putStrLn "only one time!"
+
+-- $> test
+
 
