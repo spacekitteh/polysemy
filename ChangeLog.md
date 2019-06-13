@@ -1,5 +1,9 @@
 # Changelog for polysemy
 
+## 0.4.0.1 (2019-06-13)
+
+- No changes! Just testing a new CI-based release process.
+
 ## 0.4.0.0 (2019-06-12)
 
 ### Breaking Changes
