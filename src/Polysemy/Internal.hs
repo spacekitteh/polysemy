@@ -255,7 +255,7 @@ instance Functor (Sem f) where
 
 instance Applicative (Sem f) where
   pure a = Sem $ const $ pure a
-  {-# INLINE pure #-}
+  {-# INLINE CONLIKE pure #-}
 
   Sem f <*> Sem a = Sem $ \k -> f k <*> a k
   {-# INLINE (<*>) #-}
@@ -263,7 +263,7 @@ instance Applicative (Sem f) where
 
 instance Monad (Sem f) where
   return = pure
-  {-# INLINE return #-}
+  {-# INLINE CONLIKE return #-}
 
   Sem ma >>= f = Sem $ \k -> do
     z <- ma k
@@ -273,14 +273,16 @@ instance Monad (Sem f) where
 
 instance (Member NonDet r) => Alternative (Sem r) where
   empty = send Empty
-  {-# INLINE empty #-}
+  {-# INLINE CONLIKE empty #-}
   a <|> b = send (Choose a b)
   {-# INLINE (<|>) #-}
 
 -- | @since 0.2.1.0
 instance (Member NonDet r) => MonadPlus (Sem r) where
   mzero = empty
+  {-# INLINE CONLIKE mzero #-}
   mplus = (<|>)
+  {-# INLINE CONLIKE mplus #-}
 
 -- | @since 1.1.0.0
 instance (Member Fail r) => MonadFail (Sem r) where
@@ -294,7 +296,7 @@ instance (Member Fail r) => MonadFail (Sem r) where
 -- 'Polysemy.IO.embedToMonadIO' interpretation.
 instance (Member (Embed IO) r) => MonadIO (Sem r) where
   liftIO = embed
-  {-# INLINE liftIO #-}
+  {-# INLINE CONLIKE liftIO #-}
 
 instance Member Fixpoint r => MonadFix (Sem r) where
   mfix f = send $ Fixpoint f
