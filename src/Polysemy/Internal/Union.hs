@@ -192,7 +192,7 @@ sameMember (There _)  _ =
   Nothing
 sameMember _          _ =
   Nothing
-
+{-# INLINABLE sameMember #-}
 
 ------------------------------------------------------------------------------
 -- | Used to detect ambiguous uses of effects. If @r@ isn't concrete,
@@ -210,11 +210,11 @@ class Find (t :: k) (r :: [k]) where
 
 instance {-# OVERLAPPING #-} Find t (t ': z) where
   membership' = Here
-  {-# INLINE membership' #-}
+  {-# INLINE CONLIKE membership' #-}
 
 instance Find t z => Find t (_1 ': z) where
   membership' = There $ membership' @_ @t @z
-  {-# INLINE membership' #-}
+  {-# INLINE CONLIKE membership' #-}
 
 ------------------------------------------------------------------------------
 -- | A class for effect rows whose elements are inspectable.
@@ -228,7 +228,7 @@ class KnownRow r where
 
 instance KnownRow '[] where
   tryMembership' = Nothing
-  {-# INLINE tryMembership' #-}
+  {-# INLINE CONLIKE tryMembership' #-}
 
 instance (Typeable e, KnownRow r) => KnownRow (e ': r) where
   tryMembership' :: forall e'. Typeable e' => Maybe (ElemOf e' (e ': r))
@@ -241,14 +241,14 @@ instance (Typeable e, KnownRow r) => KnownRow (e ': r) where
 -- | Given @'Member' e r@, extract a proof that @e@ is an element of @r@.
 membership :: Member e r => ElemOf e r
 membership = membership'
-{-# INLINE membership #-}
+{-# INLINE CONLIKE membership #-}
 
 ------------------------------------------------------------------------------
 -- | Extracts a proof that @e@ is an element of @r@ if that
 -- is indeed the case; otherwise returns @Nothing@.
 tryMembership :: forall e r. (Typeable e, KnownRow r) => Maybe (ElemOf e r)
 tryMembership = tryMembership' @r @e
-{-# INLINE tryMembership #-}
+{-# INLINE CONLIKE tryMembership #-}
 
 ------------------------------------------------------------------------------
 -- | Decompose a 'Union'. Either this union contains an effect @e@---the head
@@ -265,7 +265,7 @@ decomp (Union p a) =
 extract :: Union '[e] m a -> Weaving e m a
 extract (Union Here a)   = a
 extract (Union (There g) _) = case g of {}
-{-# INLINE extract #-}
+{-# INLINE CONLIKE extract #-}
 
 
 ------------------------------------------------------------------------------
@@ -278,37 +278,38 @@ absurdU (Union pr _) = case pr of {}
 -- | Weaken a 'Union' so it is capable of storing a new sort of effect.
 weaken :: forall e r m a. Union r m a -> Union (e ': r) m a
 weaken (Union pr a) = Union (There pr) a
-{-# INLINE weaken #-}
-
+{-# INLINE CONLIKE weaken #-}
 
 
 ------------------------------------------------------------------------------
--- | Lift an effect @e@ into a 'Union' capable of holding it.
-inj :: forall e r m a. (Functor m , Member e r) => e m a -> Union r m a
-inj e = injWeaving $
+-- | A freshly woven effect
+freshlyWoven :: forall e m a. Functor m => e m a -> Weaving e m a 
+freshlyWoven = \e -> 
   Weaving e (Identity ())
             (fmap Identity . runIdentity)
             runIdentity
             (Just . runIdentity)
-{-# INLINE inj #-}
+ {-# INLINE[3] freshlyWoven #-}
+
+------------------------------------------------------------------------------
+-- | Lift an effect @e@ into a 'Union' capable of holding it.
+inj :: forall e r m a. (Functor m , Member e r) => e m a -> Union r m a
+inj e = injUsing membership
+{-# INLINE CONLIKE inj #-}
 
 
 ------------------------------------------------------------------------------
 -- | Lift an effect @e@ into a 'Union' capable of holding it,
 -- given an explicit proof that the effect exists in @r@
 injUsing :: forall e r m a. Functor m => ElemOf e r -> e m a -> Union r m a
-injUsing pr e = Union pr $
-  Weaving e (Identity ())
-            (fmap Identity . runIdentity)
-            runIdentity
-            (Just . runIdentity)
-{-# INLINE injUsing #-}
+injUsing pr e = Union pr (freshlyWoven e)
+{-# INLINE[3] injUsing #-}
 
 ------------------------------------------------------------------------------
 -- | Lift a @'Weaving' e@ into a 'Union' capable of holding it.
 injWeaving :: forall e r m a. Member e r => Weaving e m a -> Union r m a
 injWeaving = Union membership
-{-# INLINE injWeaving #-}
+{-# INLINE CONLIKE injWeaving #-}
 
 ------------------------------------------------------------------------------
 -- | Attempt to take an @e@ effect out of a 'Union'.
@@ -329,7 +330,9 @@ prjUsing
   -> Union r m a
   -> Maybe (Weaving e m a)
 prjUsing pr (Union sn a) = (\Refl -> a) <$> sameMember pr sn
-{-# INLINE prjUsing #-}
+{-# INLINE[3] prjUsing #-}
+
+{-# RULES "prjUsing . injUsing" (prjUsing pr) . (injUsing pr) = Just . freshlyWoven #-}
 
 ------------------------------------------------------------------------------
 -- | Like 'decomp', but allows for a more efficient
