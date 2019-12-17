@@ -283,18 +283,18 @@ weaken (Union pr a) = Union (There pr) a
 
 ------------------------------------------------------------------------------
 -- | A freshly woven effect
-freshlyWoven :: forall e m a. Functor m => e m a -> Weaving e m a 
-freshlyWoven = \e -> 
+freshlyWoven :: forall e m a. Functor m => e m a -> Weaving e m a
+freshlyWoven = \e ->
   Weaving e (Identity ())
             (fmap Identity . runIdentity)
             runIdentity
             (Just . runIdentity)
- {-# INLINE[3] freshlyWoven #-}
+{-# INLINE[3] freshlyWoven #-}
 
 ------------------------------------------------------------------------------
 -- | Lift an effect @e@ into a 'Union' capable of holding it.
 inj :: forall e r m a. (Functor m , Member e r) => e m a -> Union r m a
-inj e = injUsing membership
+inj = injUsing membership
 {-# INLINE CONLIKE inj #-}
 
 
@@ -332,7 +332,7 @@ prjUsing
 prjUsing pr (Union sn a) = (\Refl -> a) <$> sameMember pr sn
 {-# INLINE[3] prjUsing #-}
 
-{-# RULES "prjUsing . injUsing" (prjUsing pr) . (injUsing pr) = Just . freshlyWoven #-}
+{-# RULES "prjUsing . injUsing" forall pr e. prjUsing pr (injUsing pr e) = Just (freshlyWoven e) #-}
 
 ------------------------------------------------------------------------------
 -- | Like 'decomp', but allows for a more efficient
