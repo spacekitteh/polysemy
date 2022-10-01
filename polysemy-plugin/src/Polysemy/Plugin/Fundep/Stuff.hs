@@ -91,7 +91,12 @@ polysemyStuff = do
     dflags
 #endif
     (mkModuleName "Polysemy")
-    Nothing of
+#if __GLASGOW_HASKELL__ >= 940    
+    NoPkgQual
+#else
+    Nothing 
+#endif
+    of
     LookupHidden _ _ -> error_msg
     LookupNotFound _ -> error_msg
 #if __GLASGOW_HASKELL__ >= 806
